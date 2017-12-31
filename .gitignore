@@ -1,0 +1,9 @@
+.idea/
+target/
+resources/public/
+resources/main-test.js
+.lein*
+.repl*
+.nrepl*
+*.iml
+pom.xml
