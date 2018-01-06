@@ -21,7 +21,8 @@ Creates a new store from a reducer function. `create store` takes an optional `i
 
 (defn my-reducer [state [type data]]
     (case type
-        :add-to-list (conj state data)))
+        :add-to-list (conj state data)
+        state))
 
 (def store (collaj/create-store my-other-reducer [])
 
@@ -65,6 +66,47 @@ keyword. The keyword represents the dispatched value "type".
 ;; 1
 ;; 4
 ;; 3
+;; => nil
+```
+
+## Reducers
+
+The Reducing function passed to `create-store` can be composed using functions in the `com.ben-allred.collaj.reducers`
+namespace.
+
+### `combine-reducers`
+
+The `combine-reducers` function takes a map of keys to reducers and returns a new reducer whose state is generated and
+updated by calling the supplied reducers and collected into a map with the same keys as the map passed in.
+
+```clojure
+(ns my-namespace.core
+    (:require [com.ben-allred.collaj.core :as collaj]
+              [com.ben-allred.collaj.reducers :as collaj.red]))
+
+(defn counter
+    ([] 0)
+    ([state _] (inc state)))
+
+(defn list-of-things
+    ([] [])
+    ([state [type data]]
+     (case type
+         :add-to-list (conj state data)
+         state)))
+
+(def my-reducer (collaj.red/combine-reducers {:counter counter :list-of-things list-of-things}))
+
+(let [{:keys [dispatch get-state]} (collaj/create-store my-reducer 0)]
+    (println (get-state))
+    (dispatch [:anything])
+    (println (get-state))
+    (dispatch [:add-to-list :some-value])
+    (dispatch [:add-to-list :some-other-value])
+    (println (get-state)))
+;; {:counter 0 :list-of-things []}
+;; {:counter 1 :list-of-things []}
+;; {:counter 3 :list-of-things [:some-value :some-other-value]}
 ;; => nil
 ```
 

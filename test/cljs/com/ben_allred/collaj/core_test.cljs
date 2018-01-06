@@ -80,26 +80,11 @@
                         (dispatch [:anything])
                         (is (= (get-state) 12))))))))
 
-(deftest combine-reducers-test
-    (let [counter (fn ([] 0) ([state action] (if (= action :counter) (inc state) state)))
-          c-cat (fn ([] "") ([state action] (if (= action :c-cat) (str state (count state)) state)))
-          l-action (fn ([] nil) ([state action] action))]
-        (testing "(combine-reducers)"
-            (let [reducer (collaj/combine-reducers {:counter counter :c-cat c-cat :l-action l-action})]
-                (testing "returns initial state of reducers"
-                    (are [actual expected] (= actual expected)
-                        (reducer) {:counter 0 :c-cat "" :l-action nil}))
-                (testing "applies changes to individual reducers"
-                    (are [actual expected] (= actual expected)
-                        (reducer {:counter 0 :c-cat "" :l-action nil} :counter) {:counter 1 :c-cat "" :l-action :counter}
-                        (reducer {:counter 0 :c-cat "0123" :l-action :counter} :c-cat) {:counter 0 :c-cat "01234" :l-action :c-cat}
-                        (reducer {:counter 0 :c-cat "0" :l-action :c-cat} :unknown) {:counter 0 :c-cat "0" :l-action :unknown}))))))
-
 (deftest create-custom-store-test
     (testing "(create-custom-store)"
         (testing "takes custom atom fn"
             (let [atm (spy/spy-on atom)
-                  _ (collaj/create-custom-store atm (constantly 17) :initial-state)]
+                  _   (collaj/create-custom-store atm (constantly 17) :initial-state)]
                 (is (spy/called-with-times? atm 1 :initial-state))))))
 
 (deftest enhance-reducer-test
@@ -110,7 +95,7 @@
                 (dispatch [:some-action])
                 (is (= (get-state) 17))))
         (testing "can handle multiple enhancers"
-            (let [enhancer #(fn [s a] (inc (% s a)))
+            (let [enhancer  #(fn [s a] (inc (% s a)))
                   enhancers (collaj/enhance-reducer enhancer enhancer enhancer)
                   {:keys [dispatch get-state]} (collaj/create-store (constantly 3) enhancers)]
                 (dispatch [:some-action])
@@ -131,27 +116,27 @@
     (let [any-type (fn [value] [:any-type {:value value}])]
         (testing "(apply-middleware)"
             (testing "uses return value as dispatch"
-                (let [mw (fn [_] (fn [next] (fn [_] (next [:hijacked-action]))))
+                (let [mw      (fn [_] (fn [next] (fn [_] (next [:hijacked-action]))))
                       applied (collaj/apply-middleware mw)
                       {:keys [dispatch get-state]} (collaj/create-store (fn [_ [type]] type) applied)]
                     (dispatch [:action])
                     (is (= (get-state) :hijacked-action))))
             (testing "can handle multiple enhancers"
-                (let [mw (fn [_] (fn [next] (fn [[_ {value :value}]]
-                                                (next (any-type (* value value))))))
+                (let [mw      (fn [_] (fn [next] (fn [[_ {value :value}]]
+                                                     (next (any-type (* value value))))))
                       applied (collaj/apply-middleware mw mw mw)
                       {:keys [dispatch get-state]} (collaj/create-store (fn [_ [_ {value :value}]] value) applied)]
                     (dispatch (any-type 2))
                     (is (= (get-state) 256))))
             (testing "can use get-state"
-                (let [mw (fn [get-state] (fn [next] (fn [_] (next (any-type (get-state))))))
+                (let [mw      (fn [get-state] (fn [next] (fn [_] (next (any-type (get-state))))))
                       applied (collaj/apply-middleware mw)
                       {:keys [dispatch get-state]} (collaj/create-store (fn [_ [_ {value :value}]] value) 3 applied)]
                     (dispatch (any-type 17))
                     (is (= (get-state) 3)))))))
 
 (deftest create-local-store-test
-    (let [spy (spy/create-spy)
+    (let [spy     (spy/create-spy)
           reducer (fn [state [type :as action]]
                       (spy action)
                       (case type :reset! 0 (dec state)))
@@ -175,7 +160,7 @@
         (testing "(create-custom-local-store)"
             (testing "takes custom atom fn"
                 (let [atm (spy/spy-on atom)
-                      _ (collaj/create-custom-local-store atm dispatch' (constantly 17) :initial-state)]
+                      _   (collaj/create-custom-local-store atm dispatch' (constantly 17) :initial-state)]
                     (is (spy/called-with-times? atm 1 :initial-state)))))))
 
 (defn run [] (run-tests))
