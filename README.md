@@ -74,9 +74,9 @@ keyword. The keyword represents the dispatched value "type".
 The Reducing function passed to `create-store` can be composed using functions in the `com.ben-allred.collaj.reducers`
 namespace.
 
-### `combine-reducers`
+### `combine`
 
-The `combine-reducers` function takes a map of keys to reducers and returns a new reducer whose state is generated and
+The `combine` function takes a map of keys to reducers and returns a new reducer whose state is generated and
 updated by calling the supplied reducers and collected into a map with the same keys as the map passed in.
 
 ```clojure
@@ -95,9 +95,9 @@ updated by calling the supplied reducers and collected into a map with the same 
          :add-to-list (conj state data)
          state)))
 
-(def my-reducer (collaj.red/combine-reducers {:counter counter :list-of-things list-of-things}))
+(def my-reducer (collaj.red/combine {:counter counter :list-of-things list-of-things}))
 
-(let [{:keys [dispatch get-state]} (collaj/create-store my-reducer 0)]
+(let [{:keys [dispatch get-state]} (collaj/create-store my-reducer)]
     (println (get-state))
     (dispatch [:anything])
     (println (get-state))
@@ -107,6 +107,55 @@ updated by calling the supplied reducers and collected into a map with the same 
 ;; {:counter 0 :list-of-things []}
 ;; {:counter 1 :list-of-things []}
 ;; {:counter 3 :list-of-things [:some-value :some-other-value]}
+;; => nil
+```
+
+### `assoc`
+
+The `assoc` function takes an initial reducer (that presumably always returns a map) and assoc's keys and values
+by calling each reducer with its isolated part of the state and the action. Any part of the state not assoc'ed with
+a specific reducer gets passed to the initial reducer.
+
+```clojure
+(ns my-namespace.core
+    (:require [com.ben-allred.collaj.core :as collaj]
+              [com.ben-allred.collaj.reducers :as collaj.red]))
+
+(defn person
+    ([] {})
+    ([state [type person]]
+     (case type
+        :set-person person
+        state)))
+
+(defn friends
+    ([] [])
+    ([state [type friend]]
+     (case type
+        :add-friend (conj state friend)
+        :remove-friend (into [] (remove (partial = friend) state))
+        state)))
+
+(def my-reducer (collaj.red/assoc person :friends friends))
+
+(let [{:keys [dispatch get-state]} (collaj/create-store my-reducer)]
+    (println (get-state))
+    (dispatch [:set-person {:name "Jan"}])
+    (println (get-state))
+    (dispatch [:add-friend {:name "Bill"}])
+    (dispatch [:add-friend {:name "Jax"}])
+    (println (get-state))
+    (dispatch [:set-person {:name "Simon" :favorite-colors #{:yellow :teal} :friends :i-get-assoc'ed-over}])
+    (println (get-state))
+    (dispatch [:remove-friend {:name "Bill"}])
+    (dispatch [:add-friend {:name "Susan"}])
+    (dispatch [:add-friend {:name "Harper" :cool-factor 17.2}])
+    (println (get-state)))
+;; {:friends []}
+;; {:name "Jan" :friends []}
+;; {:name "Jan" :friends [{:name "Bill"} {:name "Jax"}]}
+;; {:name "Simon" :favorite-colors #{:yellow :teal} :friends [{:name "Bill"} {:name "Jax"}]}
+;; {:name "Simon" :favorite-colors #{:yellow :teal} :friends [{:name "Jax"} {:name "Susan"} {:name "Harper" :cool-factor 17.2}]}
 ;; => nil
 ```
 
