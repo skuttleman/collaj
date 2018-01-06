@@ -11,8 +11,8 @@
     (let [reducer (fn ([] 0) ([s a] (inc s)))
           doubler (fn [create] (fn [reducer initial]
                                    (create (fn [state action] (* 2 (reducer state action))) initial)))
-          +five (fn [create] (fn [reducer initial]
-                                 (create (fn [state action] (+ 5 (reducer state action))) initial)))]
+          +five   (fn [create] (fn [reducer initial]
+                                   (create (fn [state action] (+ 5 (reducer state action))) initial)))]
         (testing "(create-store)"
             (testing "returns a store"
                 (let [store (collaj/create-store reducer)]
@@ -37,6 +37,14 @@
                     (is (spy/called-with? r-spy 0 [:anything]))
                     (is (spy/called-with? r-spy 1 [:at-all]))
                     (is (= (get-state) 2))))
+
+            (testing "has fn :dispatch which validates dispatched value"
+                (let [{:keys [dispatch]} (collaj/create-store reducer)]
+                    (are [undispatchable] (thrown? js/Object (dispatch undispatchable))
+                        :wrong
+                        "bad"
+                        ["still bad"]
+                        {:never :ever})))
 
             (testing "can be enhanced"
                 (testing "by passing an enhancer"

@@ -6,8 +6,8 @@
     :min-lein-version "2.6.1"
     :source-paths ["src/cljc"]
     :test-paths ["test/cljs"]
-    :dependencies [[org.clojure/clojure "1.8.0"]
-                   [org.clojure/clojurescript "1.9.542"]]
+    :dependencies [[org.clojure/clojure "1.9.0"]
+                   [org.clojure/clojurescript "1.9.946"]]
     :plugins [[lein-cljsbuild "1.1.6"]]
     :hooks [leiningen.cljsbuild]
     :cljsbuild {:builds        {:collaj {:source-paths ["src/cljc"]

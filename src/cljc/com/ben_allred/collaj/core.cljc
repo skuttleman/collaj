@@ -1,8 +1,8 @@
-(ns com.ben-allred.collaj.core)
+(ns com.ben-allred.collaj.core
+    (:require #?(:clj [clojure.spec.alpha :as s]
+                 :cljs [cljs.spec.alpha :as s])))
 
-(defn ^:private valid-dispatchabe? [dispatchable]
-    (and (sequential? dispatchable)
-         (keyword? (first dispatchable))))
+(s/def ::dispatchable (s/and sequential? (comp keyword? first)))
 
 (defn apply-middleware
     "Creates an enhancer out of one or more fns that take get-state
@@ -39,9 +39,11 @@
          (let [state         (atom-fn initial-state)
                get-state     (fn [] @state)
                dispatch      (fn [dispatchable]
-                                 (if (valid-dispatchabe? dispatchable)
+                                 (if (s/valid? ::dispatchable dispatchable)
                                      (swap! state reducer dispatchable)
-                                     (throw (str "Cannot dispatch: " dispatchable))))]
+                                     (throw (ex-info
+                                                (s/explain-data ::dispatchable dispatchable)
+                                                {:dispatchable dispatchable}))))]
              {:dispatch dispatch :get-state get-state}))))
 
 (defn combine-reducers
