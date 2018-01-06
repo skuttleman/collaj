@@ -1,11 +1,8 @@
 (ns com.ben-allred.collaj.core-test
-    (:require [cljs.test :refer-macros [deftest testing is are run-tests use-fixtures]]
-              [com.ben-allred.collaj.core :as collaj]
-              [support.spies :as spy]))
-
-(enable-console-print!)
-
-(use-fixtures :each {:before spy/reset-spies!})
+    (:require #?(:clj [clojure.test :refer [deftest testing is are run-tests]]
+                 :cljs [cljs.test :refer-macros [deftest testing is are run-tests]])
+                      [com.ben-allred.collaj.core :as collaj]
+                      [support.spies :as spy]))
 
 (deftest create-store-test
     (let [reducer (fn ([] 0) ([s a] (inc s)))
@@ -40,7 +37,7 @@
 
             (testing "has fn :dispatch which validates dispatched value"
                 (let [{:keys [dispatch]} (collaj/create-store reducer)]
-                    (are [undispatchable] (thrown? js/Object (dispatch undispatchable))
+                    (are [undispatchable] (thrown? #?(:clj Exception :cljs js/Object) (dispatch undispatchable))
                         :wrong
                         "bad"
                         ["still bad"]
@@ -87,10 +84,10 @@
                   _   (collaj/create-custom-store atm (constantly 17) :initial-state)]
                 (is (spy/called-with-times? atm 1 :initial-state))))))
 
-(deftest enhance-reducer-test
+(deftest ^:focused enhance-reducer-test
     (testing "(enhance-reducer)"
         (testing "uses return value as reducer"
-            (let [enhancer (collaj/enhance-reducer #(constantly 17))
+            (let [enhancer (collaj/enhance-reducer (fn [& _] (constantly 17)))
                   {:keys [dispatch get-state]} (collaj/create-store (constantly 3) enhancer)]
                 (dispatch [:some-action])
                 (is (= (get-state) 17))))
@@ -112,20 +109,20 @@
                 (dispatch [:random-type])
                 (is (= (get-state) 3))))))
 
-(deftest ^:focused apply-middleware-test
+(deftest apply-middleware-test
     (let [any-type (fn [value] [:any-type {:value value}])]
         (testing "(apply-middleware)"
             (testing "uses return value as dispatch"
                 (let [mw      (fn [_] (fn [next] (fn [_] (next [:hijacked-action]))))
                       applied (collaj/apply-middleware mw)
-                      {:keys [dispatch get-state]} (collaj/create-store (fn [_ [type]] type) applied)]
+                      {:keys [dispatch get-state]} (collaj/create-store (fn [_ [type]] type) nil applied)]
                     (dispatch [:action])
                     (is (= (get-state) :hijacked-action))))
             (testing "can handle multiple enhancers"
                 (let [mw      (fn [_] (fn [next] (fn [[_ {value :value}]]
                                                      (next (any-type (* value value))))))
                       applied (collaj/apply-middleware mw mw mw)
-                      {:keys [dispatch get-state]} (collaj/create-store (fn [_ [_ {value :value}]] value) applied)]
+                      {:keys [dispatch get-state]} (collaj/create-store (fn [_ [_ {value :value}]] value) nil applied)]
                     (dispatch (any-type 2))
                     (is (= (get-state) 256))))
             (testing "can use get-state"
@@ -162,5 +159,3 @@
                 (let [atm (spy/spy-on atom)
                       _   (collaj/create-custom-local-store atm dispatch' (constantly 17) :initial-state)]
                     (is (spy/called-with-times? atm 1 :initial-state)))))))
-
-(defn run [] (run-tests))

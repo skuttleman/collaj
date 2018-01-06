@@ -1,8 +1,9 @@
 (ns com.ben-allred.collaj.reducers-test
-    (:require [cljs.test :refer-macros [deftest testing is are run-tests use-fixtures]]
-              [com.ben-allred.collaj.core :as collaj]
-              [com.ben-allred.collaj.reducers :as collaj.red]
-              [support.spies :as spy]))
+    (:require #?(:clj [clojure.test :refer [deftest testing is are run-tests]]
+                 :cljs [cljs.test :refer-macros [deftest testing is are run-tests]])
+                      [com.ben-allred.collaj.core :as collaj]
+                      [com.ben-allred.collaj.reducers :as collaj.red]
+                      [support.spies :as spy]))
 
 (deftest combine-test
     (let [counter  (fn ([] 0) ([state action] (if (= action :counter) (inc state) state)))
@@ -64,5 +65,3 @@
                         {:first-name "" :last-name "" :fav-nums #{13} :injuries [:knee]}
                         [:injury/sustain :feelings]
                         {:first-name "" :last-name "" :fav-nums #{13} :injuries [:knee :feelings]}))))))
-
-(defn run [] (run-tests))
