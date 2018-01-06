@@ -84,7 +84,7 @@
                   _   (collaj/create-custom-store atm (constantly 17) :initial-state)]
                 (is (spy/called-with-times? atm 1 :initial-state))))))
 
-(deftest ^:focused enhance-reducer-test
+(deftest enhance-reducer-test
     (testing "(enhance-reducer)"
         (testing "uses return value as reducer"
             (let [enhancer (collaj/enhance-reducer (fn [& _] (constantly 17)))

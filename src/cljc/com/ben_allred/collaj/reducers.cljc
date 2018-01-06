@@ -23,7 +23,7 @@
     [reducer & {:as reducer-map}]
     (let [keys (keys reducer-map)]
         (fn
-            ([] (into (reducer) map-initial reducer-map))
-            ([state action] (into (reducer (apply dissoc state keys) action)
+            ([] ((fnil into {}) (reducer) map-initial reducer-map))
+            ([state action] ((fnil into {}) (reducer (apply dissoc state keys) action)
                                 (map-reduction state action)
                                 reducer-map)))))

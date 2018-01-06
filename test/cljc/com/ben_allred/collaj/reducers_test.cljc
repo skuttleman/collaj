@@ -64,4 +64,8 @@
 
                         {:first-name "" :last-name "" :fav-nums #{13} :injuries [:knee]}
                         [:injury/sustain :feelings]
-                        {:first-name "" :last-name "" :fav-nums #{13} :injuries [:knee :feelings]}))))))
+                        {:first-name "" :last-name "" :fav-nums #{13} :injuries [:knee :feelings]})))
+            (let [reducer (collaj.red/assoc (constantly nil) :fav-nums fav-nums)]
+                (testing "defaults initial reducer to empty map when it returns nil"
+                    (is (= (reducer) {:fav-nums #{}}))
+                    (is (= (reducer {:fav-nums #{} :something :else} [:nums/like 75]) {:fav-nums #{75}})))))))
