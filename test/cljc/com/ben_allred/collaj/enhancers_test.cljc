@@ -11,8 +11,13 @@
         (->> types
             (every? (comp (partial spy/called-with? spy) (partial conj []))))))
 
+(defn ^:private create-watcher-store
+    ([] (create-watcher-store (constantly {::some ::store})))
+    ([reducer]
+     (collaj/create-store reducer collaj.en/with-watchers)))
+
 (deftest with-subscribers-test
-    (testing "with-subscribers"
+    (testing "(with-subscribers)"
         (testing "adds :subscribe to store"
             (let [store (collaj/create-store (constantly nil) collaj.en/with-subscribers)]
                 (is (fn? (:subscribe store)))))
@@ -74,7 +79,7 @@
                 (is (spy/never-called? spy))))))
 
 (deftest with-keyword-dispatch-test
-    (testing "with-keyword-dispatch"
+    (testing "(with-keyword-dispatch)"
         (testing "allows dispatching keywords"
             (let [reducer-spy  (spy/create-spy)
                   dispatch-spy (spy/create-spy)
@@ -93,7 +98,7 @@
                 (is (spy/called-with? reducer-spy nil [:some-type]))))))
 
 (deftest with-fn-dispatch-test
-    (testing "with-fn-dispatch"
+    (testing "(with-fn-dispatch)"
         (let [reducer-spy  (spy/create-spy)
               action-spy   (spy/create-spy)
               dispatch-spy (spy/create-spy)
@@ -113,7 +118,7 @@
                     (is (spy/called-with? reducer-spy :initial-state [:some-type])))))))
 
 (deftest with-log-middleware-test
-    (testing "with-log-middleware"
+    (testing "(with-log-middleware)"
         (testing "creates a middleware with a log-fn that is called with an action being dispatched"
             (let [log-spy (spy/create-spy)
                   log-mw  (collaj.en/with-log-middleware log-spy)
@@ -132,3 +137,64 @@
                 (is (spy/called-with? log-action-spy [:some-type]))
                 (is (spy/called-times? log-after-spy 1))
                 (is (spy/called-with? log-after-spy 13))))))
+
+(deftest with-watchers-test
+    (testing "(with-watchers)"
+        (testing "adds :watch fn to store"
+            (let [store (create-watcher-store)]
+                (is (fn? (:watch store))))
+            (testing "when using :watch"
+                (testing "is notified of root changes when path is empty"
+                    (let [reducer (fn ([] {::some ::store})
+                                      ([_ _] {::some ::update}))
+                          {:keys [watch dispatch]} (create-watcher-store reducer)
+                          watcher (spy/create-spy)]
+                        (watch [] watcher)
+                        (dispatch [::something])
+                        (is (spy/called-times? watcher 1))
+                        (is (spy/called-with? watcher {::some ::store} {::some ::update}))))
+                (testing "is notified of changes to state at a specified path"
+                    (let [reducer (fn ([] {::some ::store})
+                                      ([_ _] {::some ::update}))
+                          {:keys [watch dispatch]} (create-watcher-store reducer)
+                          watcher (spy/create-spy)]
+                        (watch [::some] watcher)
+                        (dispatch [::something])
+                        (is (spy/called-times? watcher 1))
+                        (is (spy/called-with? watcher ::store ::update))))
+                (testing "is not notified of other changes to state"
+                    (let [reducer (fn ([] {::nested {::always 17 ::changer 0}})
+                                      ([state _] (update-in state [::nested ::changer] inc)))
+                          {:keys [watch dispatch]} (create-watcher-store reducer)
+                          watcher (spy/create-spy)]
+                        (watch [::nested ::always] watcher)
+                        (dispatch [::something])
+                        (is (spy/called-times? watcher 0))))
+                (testing "can have multiple watchers"
+                    (let [reducer       (fn ([] {::nested {::always 17 ::changer 0}})
+                                            ([state _] (update-in state [::nested ::changer] inc)))
+                          {:keys [watch dispatch]} (create-watcher-store reducer)
+                          watch-always  (spy/create-spy)
+                          watch-changer (spy/create-spy)]
+                        (watch [::nested ::always] watch-always)
+                        (watch [::nested ::changer] watch-changer)
+                        (dispatch [::something])
+                        (dispatch [::something])
+                        (is (spy/called-times? watch-always 0))
+                        (is (spy/called-times? watch-changer 2))
+                        (is (spy/called-with? watch-changer 0 1))
+                        (is (spy/called-with? watch-changer 1 2))))
+                (testing "returns an unwatch fn"
+                    (let [reducer       (fn ([] {::nested {::always 17 ::changer 0}})
+                                            ([state _] (update-in state [::nested ::changer] inc)))
+                          {:keys [watch dispatch]} (create-watcher-store reducer)
+                          watch-always  (spy/create-spy)
+                          watch-changer (spy/create-spy)
+                          unwatch       (watch [::nested ::changer] watch-changer)]
+                        (watch [::nested ::always] watch-always)
+                        (dispatch [::something])
+                        (unwatch)
+                        (dispatch [::something])
+                        (is (spy/called-times? watch-always 0))
+                        (is (spy/called-times? watch-changer 1))
+                        (is (spy/called-with? watch-changer 0 1))))))))

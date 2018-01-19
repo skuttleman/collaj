@@ -59,3 +59,36 @@
                               (let [result (next action)]
                                   (log-after (get-state))
                                   result))))))
+
+(defn with-watchers
+    "Adds a :watch fn to store that takes a function to be notified when a specified path
+    into state changes upon an action being dispatched. The function will be called with
+    the old state (at the specified path) and the new state (at the specified path). Returns
+    a function that will unwatch.
+    ex: (let [{watch :watch} (collaj/create-store my-reducer collaj/with-watchers)]
+            (watch [:some :path :into :state] println)
+            (watch [] do-something-when-anything-in-state-changes)"
+    [next]
+    (fn [reducer initial-state]
+        (next reducer initial-state)
+        (let [watchers (atom {})
+              watch    (fn [path f]
+                           (let [key (gensym)]
+                               (swap! watchers assoc key [path f])
+                               (fn [] (swap! watchers dissoc key))))
+              notify!  (fn [dispatch get-state]
+                           (fn [action]
+                               (let [old-state (get-state)
+                                     result    (dispatch action)
+                                     new-state (get-state)]
+                                   (doseq [[_ [path f]] @watchers
+                                           :let [path      (seq path)
+                                                 old-state (if path (get-in old-state path) old-state)
+                                                 new-state (if path (get-in new-state path) new-state)]
+                                           :when (not= old-state new-state)]
+                                       (f old-state new-state))
+                                   result)))
+              store    (next reducer initial-state)]
+            (-> store
+                (update :dispatch notify! (:get-state store))
+                (assoc :watch watch)))))
