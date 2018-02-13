@@ -7,7 +7,7 @@ library for Javascript.
 
 Include in your `project.clj`'s dependencies':
 ```clojure
-[com.ben-allred/collaj "0.1.0"]
+[com.ben-allred/collaj "0.4.0"]
 ```
 
 ### `create-store`
