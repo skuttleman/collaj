@@ -68,4 +68,38 @@
             (let [reducer (collaj.red/assoc (constantly nil) :fav-nums fav-nums)]
                 (testing "defaults initial reducer to empty map when it returns nil"
                     (is (= (reducer) {:fav-nums #{}}))
-                    (is (= (reducer {:fav-nums #{} :something :else} [:nums/like 75]) {:fav-nums #{75}})))))))
+                    (is (= (reducer {:fav-nums #{} :something :else} [:nums/like 75]) {:fav-nums #{75}})))))
+        (testing "(assoc-in)"
+            (let [reducer (collaj.red/assoc-in person [:fav-nums :joey] fav-nums [:fav-nums :billy] fav-nums [:injuries] injuries)]
+                (testing "returns initial state of reducers"
+                    (is (= (reducer) {:first-name "" :last-name "" :fav-nums {:joey #{} :billy #{}} :injuries []})))
+                (testing "calls reducers with isolated state"
+                    (spy/reset-spies!)
+                    (reducer {:arbitrary :thing :first-name "Jimmy" :last-name "Joe" :fav-nums {:billy #{13} :joey #{37}} :injuries [:knee]} [:some-event])
+                    (are [spy state] (spy/called-with? spy state [:some-event])
+                        person {:arbitrary :thing :first-name "Jimmy" :last-name "Joe" :fav-nums {}}
+                        fav-nums #{13}
+                        fav-nums #{37}
+                        injuries [:knee]))
+                (testing "applies changes to individual reducers"
+                    (are [state action expected] (= (reducer state action) expected)
+                        {:first-name "" :last-name "" :fav-nums {:billy #{13} :joey #{37}} :injuries [:knee]}
+                        [:person/update {:first-name "Jimmy" :last-name "Joe" :fav-nums #{-9} :injuries [:face]}]
+                        {:first-name "Jimmy" :last-name "Joe" :fav-nums {:billy #{13} :joey #{37}} :injuries [:knee]}
+
+                        {:first-name "" :last-name "" :fav-nums {:billy #{13} :joey #{37}} :injuries [:knee]}
+                        [:nums/like 7]
+                        {:first-name "" :last-name "" :fav-nums {:billy #{13 7} :joey #{37 7}} :injuries [:knee]}
+
+                        {:first-name "" :last-name "" :fav-nums {:billy #{13} :joey #{37}} :injuries [:knee]}
+                        [:nums/dislike 13]
+                        {:first-name "" :last-name "" :fav-nums {:billy #{} :joey #{37}} :injuries [:knee]}
+
+                        {:first-name "" :last-name "" :fav-nums {:billy #{13} :joey #{37}} :injuries [:knee]}
+                        [:injury/sustain :feelings]
+                        {:first-name "" :last-name "" :fav-nums {:billy #{13} :joey #{37}} :injuries [:knee :feelings]})))
+            (let [reducer (collaj.red/assoc-in (constantly nil) [:some :path :to :fav-nums] fav-nums)]
+                (testing "defaults initial reducer to empty map when it returns nil"
+                    (is (= (reducer) {:some {:path {:to {:fav-nums #{}}}}}))
+                    (is (= (reducer {:some {:path {:to {:fav-nums #{}}}} :something :else} [:nums/like 75])
+                            {:some {:path {:to {:fav-nums #{75}}}}})))))))

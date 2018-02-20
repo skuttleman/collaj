@@ -159,6 +159,55 @@ a specific reducer gets passed to the initial reducer.
 ;; => nil
 ```
 
+### `assoc-in`
+
+The `assoc-in` function takes an initial reducer (that presumably always returns a map) and assoc's in key paths and
+values by calling each reducer with its isolated part of the state and the action. Any part of the state not assoc'ed
+in with a specific reducer gets passed to the initial reducer.
+
+```clojure
+(ns my-namespace.core
+    (:require [com.ben-allred.collaj.core :as collaj]
+              [com.ben-allred.collaj.reducers :as collaj.red]))
+
+(defn person
+    ([] {})
+    ([state [type person]]
+     (case type
+        :set-person person
+        state)))
+
+(defn friends
+    ([] [])
+    ([state [type friend]]
+     (case type
+        :add-friend (conj state friend)
+        :remove-friend (into [] (remove (partial = friend) state))
+        state)))
+
+(def my-reducer (collaj.red/assoc-in person [:best :friends] friends))
+
+(let [{:keys [dispatch get-state]} (collaj/create-store my-reducer)]
+    (println (get-state))
+    (dispatch [:set-person {:name "Jan"}])
+    (println (get-state))
+    (dispatch [:add-friend {:name "Bill"}])
+    (dispatch [:add-friend {:name "Jax"}])
+    (println (get-state))
+    (dispatch [:set-person {:name "Simon" :favorite-colors #{:yellow :teal} :friends :i-get-assoc'ed-over}])
+    (println (get-state))
+    (dispatch [:remove-friend {:name "Bill"}])
+    (dispatch [:add-friend {:name "Susan"}])
+    (dispatch [:add-friend {:name "Harper" :cool-factor 17.2}])
+    (println (get-state)))
+;; {:best {:friends []}}
+;; {:name "Jan" :best {:friends []}}
+;; {:name "Jan" :best {:friends [{:name "Bill"} {:name "Jax"}]}}
+;; {:name "Simon" :favorite-colors #{:yellow :teal} :best {:friends [{:name "Bill"} {:name "Jax"}]}}
+;; {:name "Simon" :favorite-colors #{:yellow :teal} :best {:friends [{:name "Jax"} {:name "Susan"} {:name "Harper" :cool-factor 17.2}]}}
+;; => nil
+```
+
 ## Enhancers
 
 Enhancers exist in the `com.ben-allred.collaj.enhancers` namespace. These can be mixed and matched when creating your store by
