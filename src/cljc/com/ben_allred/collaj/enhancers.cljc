@@ -1,4 +1,12 @@
-(ns com.ben-allred.collaj.enhancers)
+(ns com.ben-allred.collaj.enhancers
+    (:require #?@(:clj  [[clojure.core.async :as async]
+                         [clojure.core.async.impl.protocols :as async.protocols]]
+                  :cljs [[cljs.core.async :as async]
+                         [cljs.core.async.impl.protocols :as async.protocols]])))
+
+(defn ^:private chan? [x]
+    (and (satisfies? async.protocols/Channel x)
+        (satisfies? async.protocols/ReadPort x)))
 
 (defn ^:private update-dispatch [f]
     (fn [next]
@@ -46,6 +54,18 @@
                          (fn dispatch [action]
                              (if (fn? action)
                                  (action [dispatch get-state])
+                                 (next action))))))
+
+(def with-chan-dispatch
+    "Enables dispatching a core.async channel which dispatches values placed on the channel."
+    (update-dispatch (fn [next get-state]
+                         (fn dispatch [action]
+                             (if (chan? action)
+                                 (do (async/go-loop []
+                                         (when-let [value (async/<! action)]
+                                             (next value)
+                                             (recur)))
+                                     nil)
                                  (next action))))))
 
 (defn with-log-middleware

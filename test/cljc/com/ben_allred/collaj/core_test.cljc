@@ -37,11 +37,11 @@
 
             (testing "has fn :dispatch which validates dispatched value"
                 (let [{:keys [dispatch]} (collaj/create-store reducer)]
-                    (are [undispatchable] (thrown? #?(:clj Exception :cljs js/Object) (dispatch undispatchable))
-                        :wrong
-                        "bad"
-                        ["still bad"]
-                        {:never :ever})))
+                    (doseq [undispatchable [:wrong "bad" ["still" :bad] {:never :ever}]]
+                        (and (is (thrown? #?(:clj Exception :cljs js/Object) (dispatch undispatchable)))
+                            (try (dispatch undispatchable)
+                                 (catch #?(:clj Exception :cljs js/Object) ex
+                                     (is (= undispatchable (:dispatched (ex-data ex))))))))))
 
             (testing "can be enhanced"
                 (testing "by passing an enhancer"

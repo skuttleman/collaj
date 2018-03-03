@@ -36,31 +36,31 @@
         ([reducer initial-state enhancers]
          (((apply comp (remove nil? enhancers)) create) reducer initial-state))
         ([reducer initial-state]
-         (let [state         (atom-fn initial-state)
-               get-state     (fn [] @state)
-               dispatch      (fn [dispatchable]
-                                 (if (s/valid? ::dispatchable dispatchable)
-                                     (swap! state reducer dispatchable)
-                                     (throw (ex-info
-                                                (s/explain-data ::dispatchable dispatchable)
-                                                {:dispatchable dispatchable}))))]
+         (let [state     (atom-fn initial-state)
+               get-state (fn [] @state)
+               dispatch  (fn [dispatchable]
+                             (if (s/valid? ::dispatchable dispatchable)
+                                 (swap! state reducer dispatchable)
+                                 (throw (ex-info
+                                            (pr-str (s/explain-data ::dispatchable dispatchable))
+                                            {:dispatched dispatchable}))))]
              {:dispatch dispatch :get-state get-state}))))
 
 (defn create-custom-store
     ([atom-fn reducer]
-        ((build-store atom-fn) reducer (reducer)))
+     ((build-store atom-fn) reducer (reducer)))
     ([atom-fn reducer initial-state & enhancers]
-        (if (fn? initial-state)
-            ((build-store atom-fn) reducer (reducer) (conj enhancers initial-state))
-            ((build-store atom-fn) reducer initial-state enhancers))))
+     (if (fn? initial-state)
+         ((build-store atom-fn) reducer (reducer) (conj enhancers initial-state))
+         ((build-store atom-fn) reducer initial-state enhancers))))
 
 (defn create-custom-local-store
     ([atom-fn dispatch reducer]
-        ((build-store atom-fn) reducer (reducer) [(dispatch-wrapper dispatch)]))
+     ((build-store atom-fn) reducer (reducer) [(dispatch-wrapper dispatch)]))
     ([atom-fn dispatch reducer initial-state & enhancers]
-        (if (fn? initial-state)
-            ((build-store atom-fn) reducer (reducer) (conj enhancers initial-state (dispatch-wrapper dispatch)))
-            ((build-store atom-fn) reducer initial-state (conj enhancers (dispatch-wrapper dispatch))))))
+     (if (fn? initial-state)
+         ((build-store atom-fn) reducer (reducer) (conj enhancers initial-state (dispatch-wrapper dispatch)))
+         ((build-store atom-fn) reducer initial-state (conj enhancers (dispatch-wrapper dispatch))))))
 
 (def create-store (partial create-custom-store atom))
 

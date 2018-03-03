@@ -1,10 +1,12 @@
 (ns com.ben-allred.collaj.enhancers-test
-    (:require #?(:clj [clojure.test :refer [deftest testing is are run-tests]]
-                 :cljs [cljs.test :refer-macros [deftest testing is are run-tests]])
-                      [com.ben-allred.collaj.core :as collaj]
-                      [com.ben-allred.collaj.enhancers :as collaj.en]
-                      [support.spies :as spy]
-                      [support.core :as spt]))
+    (:require #?@(:clj  [[clojure.test :refer [deftest testing is are run-tests]]
+                         [clojure.core.async :as async]]
+                  :cljs [[cljs.test :refer-macros [deftest testing is are run-tests]]
+                         [cljs.core.async :as async]])
+                         [com.ben-allred.collaj.core :as collaj]
+                         [com.ben-allred.collaj.enhancers :as collaj.en]
+                         [support.spies :as spy]
+                         [support.core :as spt]))
 
 (defn ^:private sub-spies [spy types]
     (and (spy/called-times? spy (count types))
@@ -77,6 +79,47 @@
                 (dispatch [:b {:value 2}])
                 (dispatch [:c {:value 3}])
                 (is (spy/never-called? spy))))))
+
+(deftest with-channels-test
+    (testing "(with-channels)"
+        (testing "allows dispatching of channels"
+            (let [reducer-spy  (spy/create-spy)
+                  dispatch-spy (spy/create-spy)
+                  spy-mw       (spt/spy-middleware dispatch-spy)
+                  chan         (async/chan 64)
+                  {:keys [dispatch]} (collaj/create-store reducer-spy collaj.en/with-chan-dispatch spy-mw)]
+                (dispatch chan)))
+
+        (testing "dispatches values placed on the channel"
+            (let [reducer-spy     (spy/create-spy)
+                  dispatch-spy    (spy/create-spy)
+                  spy-mw          (spt/spy-middleware dispatch-spy)
+                  chan            (async/chan 64)
+                  {:keys [dispatch]} (collaj/create-store reducer-spy collaj.en/with-chan-dispatch spy-mw)
+                  test-dispatched #(is (spy/called-with? dispatch-spy [:some :value]))]
+                (dispatch chan)
+                (is (not (spy/called? dispatch-spy)))
+                (async/go
+                    (async/>! chan [:some :value])
+                    #?(:clj  (do
+                                 (Thread/sleep 1)
+                                 (test-dispatched))
+                       :cljs (.setTimeout js/window test-dispatched 1)))))
+        (testing "stops reading channel when channel closes"
+            (let [reducer-spy      (spy/create-spy)
+                  dispatch-spy     (spy/create-spy)
+                  spy-mw           (spt/spy-middleware dispatch-spy)
+                  chan             (async/chan 64)
+                  {:keys [dispatch]} (collaj/create-store reducer-spy collaj.en/with-chan-dispatch spy-mw)
+                  test-no-dispatch #(is (not (spy/called? dispatch-spy)))]
+                (dispatch chan)
+                (async/close! chan)
+                (async/go
+                    (async/>! chan [:some :value])
+                    #?(:clj  (do
+                                 (Thread/sleep 1)
+                                 (test-no-dispatch))
+                       :cljs (.setTimeout js/window test-no-dispatch 1)))))))
 
 (deftest with-keyword-dispatch-test
     (testing "(with-keyword-dispatch)"

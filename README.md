@@ -292,6 +292,27 @@ This allows you to dispatch functions that gets invoked with `dispatch` and `get
                             (dispatch overflow-the-stack))))
 ```
 
+### `with-chan-dispatch`
+
+This allows you to dispatch a `core.async/chan`. Values placed on the channel will be dispatched as they happen until
+the channel is closed.
+
+```clojure
+(ns my-namespace.core
+    (:require [com.ben-allred.collaj.core :as collaj]
+              [clojure.core.async :as async]
+              [com.ben-allred.collaj.enhancers :as collaj.en]))
+
+(def store (collaj/create-store my-reducer 13 collaj.en/with-chan-dispatch)
+
+(def dispatch-chan (async/chan))
+((:dispatch store) dispatch-chan)
+
+(async/go
+    (async/>! dispatch-chan [:some-event {:some :data}])
+    (async/>! dispatch-chan [:some-othe-event {:some [:other :data]}]))
+```
+
 ### `with-log-middleware`
 
 A middleware for "peeking" at the action being dispatched and the resulting state.
