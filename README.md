@@ -268,7 +268,7 @@ This allows you to dispatch keywords and will wrap them into a vector before get
     ([state action]
         action)
 
-(def store (collaj/creat-store my-reducer collaj.en/with-keyword-dispatch)
+(def store (collaj/create-store my-reducer collaj.en/with-keyword-dispatch)
 
 ((:dispatch store) :do-something)
 ((:get-state store))
@@ -284,7 +284,7 @@ This allows you to dispatch functions that gets invoked with `dispatch` and `get
     (:require [com.ben-allred.collaj.core :as collaj]
               [com.ben-allred.collaj.enhancers :as collaj.en]))
 
-(def store (collaj/creat-store my-reducer 13 collaj.en/with-fn-dispatch)
+(def store (collaj/create-store my-reducer 13 collaj.en/with-fn-dispatch)
 
 ((:dispatch store) (fn overflow-the-stack [[dipatch get-state]]
                         (if (= (get-state) 14)
@@ -305,7 +305,7 @@ A middleware for "peeking" at the action being dispatched and the resulting stat
                     (comp log/debug (partial str "dispatching action: "))
                     (comp log/debug (partial str "updated state is: "))
 
-(def store (collaj/creat-store my-reducer 13 middleware)
+(def store (collaj/create-store my-reducer 13 middleware)
 ```
 
 ### Custom Enhancer
