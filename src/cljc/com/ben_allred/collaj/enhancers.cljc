@@ -1,8 +1,9 @@
 (ns com.ben-allred.collaj.enhancers
-    (:require #?@(:clj  [[clojure.core.async :as async]
+    (:require #?@(:clj  [[clojure.core.async :refer [go-loop <!]]
                          [clojure.core.async.impl.protocols :as async.protocols]]
-                  :cljs [[cljs.core.async :as async]
-                         [cljs.core.async.impl.protocols :as async.protocols]])))
+                  :cljs [[cljs.core.async.impl.protocols :as async.protocols]
+                         [cljs.core.async :refer [<!]]]))
+    #?(:cljs (:require-macros [cljs.core.async.macros :refer [go-loop]])))
 
 (defn ^:private chan? [x]
     (and (satisfies? async.protocols/Channel x)
@@ -61,8 +62,8 @@
     (update-dispatch (fn [next get-state]
                          (fn dispatch [action]
                              (if (chan? action)
-                                 (do (async/go-loop []
-                                         (when-let [value (async/<! action)]
+                                 (do (go-loop []
+                                         (when-let [value (<! action)]
                                              (next value)
                                              (recur)))
                                      nil)
