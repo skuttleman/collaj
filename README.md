@@ -7,7 +7,7 @@ library for Javascript.
 
 Include in your `project.clj`'s dependencies':
 ```clojure
-[com.ben-allred/collaj "0.4.0"]
+[com.ben-allred/collaj "0.6.1"]
 ```
 
 ### `create-store`
@@ -24,7 +24,7 @@ Creates a new store from a reducer function. `create store` takes an optional `i
         :add-to-list (conj state data)
         state))
 
-(def store (collaj/create-store my-other-reducer [])
+(def store (collaj/create-store my-other-reducer []))
 
 (defn my-other-reducer
     ([] 0) ;; initial state
@@ -129,33 +129,40 @@ a specific reducer gets passed to the initial reducer.
         state)))
 
 (defn friends
-    ([] [])
+    ([] #{})
     ([state [type friend]]
      (case type
         :add-friend (conj state friend)
-        :remove-friend (into [] (remove (partial = friend) state))
+        :add-frienemy (conj state friend)
         state)))
 
-(def my-reducer (collaj.red/assoc person :friends friends))
+(defn enemies
+    ([] #{})
+    ([state [type enemy]]
+     (case type
+        :add-enemy (conj state enemy)
+        :add-frienemy (conj state enemy)
+        state)))
+
+(def my-reducer (collaj.red/assoc person :friends friends :enemies enemies))
 
 (let [{:keys [dispatch get-state]} (collaj/create-store my-reducer)]
     (println (get-state))
     (dispatch [:set-person {:name "Jan"}])
     (println (get-state))
-    (dispatch [:add-friend {:name "Bill"}])
-    (dispatch [:add-friend {:name "Jax"}])
+    (dispatch [:add-friend "Bill"])
+    (dispatch [:add-enemy "Jax"])
     (println (get-state))
     (dispatch [:set-person {:name "Simon" :favorite-colors #{:yellow :teal} :friends :i-get-assoc'ed-over}])
     (println (get-state))
-    (dispatch [:remove-friend {:name "Bill"}])
-    (dispatch [:add-friend {:name "Susan"}])
-    (dispatch [:add-friend {:name "Harper" :cool-factor 17.2}])
+    (dispatch [:add-friend "Susan"])
+    (dispatch [:add-frienemy "Harper"])
     (println (get-state)))
-;; {:friends []}
-;; {:name "Jan" :friends []}
-;; {:name "Jan" :friends [{:name "Bill"} {:name "Jax"}]}
-;; {:name "Simon" :favorite-colors #{:yellow :teal} :friends [{:name "Bill"} {:name "Jax"}]}
-;; {:name "Simon" :favorite-colors #{:yellow :teal} :friends [{:name "Jax"} {:name "Susan"} {:name "Harper" :cool-factor 17.2}]}
+;; {:friends #{} :enemies #{}}
+;; {:name "Jan" :friends #{} :enemies #{}}
+;; {:name "Jan" :friends #{"Bill"} :enemies #{"Jax"}}
+;; {:name "Simon" :favorite-colors #{:yellow :teal} :friends #{"Bill"} :enemies #{"Jax"}}
+;; {:name "Simon" :favorite-colors #{:yellow :teal} :friends #{"Susan" "Bill" "Harper"} :enemies #{"Jax" "Harper"}}
 ;; => nil
 ```
 
@@ -178,33 +185,40 @@ in with a specific reducer gets passed to the initial reducer.
         state)))
 
 (defn friends
-    ([] [])
+    ([] #{})
     ([state [type friend]]
      (case type
         :add-friend (conj state friend)
-        :remove-friend (into [] (remove (partial = friend) state))
+        :add-frienemy (conj state friend)
         state)))
 
-(def my-reducer (collaj.red/assoc-in person [:best :friends] friends))
+(defn enemies
+    ([] #{})
+    ([state [type enemy]]
+     (case type
+        :add-enemy (conj state enemy)
+        :add-frienemy (conj state enemy)
+        state)))
+
+(def my-reducer (collaj.red/assoc-in person [:best :friends] friends [:worst :enemies] enemies))
 
 (let [{:keys [dispatch get-state]} (collaj/create-store my-reducer)]
     (println (get-state))
     (dispatch [:set-person {:name "Jan"}])
     (println (get-state))
-    (dispatch [:add-friend {:name "Bill"}])
-    (dispatch [:add-friend {:name "Jax"}])
+    (dispatch [:add-friend "Bill"])
+    (dispatch [:add-enemy "Jax"])
     (println (get-state))
-    (dispatch [:set-person {:name "Simon" :favorite-colors #{:yellow :teal} :friends :i-get-assoc'ed-over}])
+    (dispatch [:set-person {:name "Simon" :favorite-colors #{:yellow :teal} :best {:friends :i-get-assoc'ed-over}}])
     (println (get-state))
-    (dispatch [:remove-friend {:name "Bill"}])
-    (dispatch [:add-friend {:name "Susan"}])
-    (dispatch [:add-friend {:name "Harper" :cool-factor 17.2}])
+    (dispatch [:add-friend "Susan"])
+    (dispatch [:add-frienemy "Harper"])
     (println (get-state)))
-;; {:best {:friends []}}
-;; {:name "Jan" :best {:friends []}}
-;; {:name "Jan" :best {:friends [{:name "Bill"} {:name "Jax"}]}}
-;; {:name "Simon" :favorite-colors #{:yellow :teal} :best {:friends [{:name "Bill"} {:name "Jax"}]}}
-;; {:name "Simon" :favorite-colors #{:yellow :teal} :best {:friends [{:name "Jax"} {:name "Susan"} {:name "Harper" :cool-factor 17.2}]}}
+;; {:worst {:enemies #{}} :best {:friends #{}}}
+;; {:name "Jan" :worst {:enemies #{}} :best {:friends #{}}}
+;; {:name "Jan" :worst {:enemies #{"Jax"}} :best {:friends #{"Bill"}}}
+;; {:name "Simon" :favorite-colors #{:yellow :teal} :best {:friends #{"Bill"}} :worst {:enemies #{"Jax"}}}
+;; {:name "Simon" :favorite-colors #{:yellow :teal} :best {:friends #{"Susan" "Bill" "Harper"}} :worst {:enemies #{"Jax" "Harper"}}}
 ;; => nil
 ```
 
@@ -229,7 +243,7 @@ cancel the subscription.
     (:require [com.ben-allred.collaj.core :as collaj]
               [com.ben-allred.collaj.enhancers :as collaj.en]))
 
-(def store (collaj/create-store my-reducer collaj.en/with-subscribers)
+(def store (collaj/create-store my-reducer collaj.en/with-subscribers))
 
 (def dispatch (:dispatch store))
 
@@ -254,6 +268,61 @@ cancel the subscription.
 ;; "all actions [:type-a]"
 ```
 
+### `with-watchers`
+
+This enhancer adds a `:watch` function to the store which takes a path from the root of your state tree and a function to
+be invoked when any nested value changes at the supplied path. `:watch` returns an `:unwatch` function to be called when
+watching the state is no longer needed.
+
+```clojure
+(ns my-namespace.core
+    (:require [com.ben-allred.collaj.core :as collaj]
+              [com.ben-allred.collaj.enhancers :as collaj.en]))
+
+(defn my-reducer
+    ([]
+     {:numbers #{} :letters {:lower-case #{} :upper-case #{}}})
+    ([state [type value]]
+     (case type
+        :numbers/add (update state :numbers conj value)
+        :letters.lower-case/add (update-in state [:letters :lower-case] conj value)
+        :letters.upper-case/add (update-in state [:letters :upper-case] conj value)
+        state)))
+
+(def store (collaj/create-store my-reducer collaj.en/with-watchers))
+
+(def dispatch (:dispatch store))
+
+(def watch (:watch store))
+
+(watch [:numbers] (fn [old-value new-value]
+                      (println "numbers are now" new-value)))
+
+(watch [:letters :lower-case] (fn [old-value new-value]
+                                  (println "lower-case letters are now" new-value)))
+
+(def unwatch-root
+    (watch [] (fn [old-value new-value]
+                  (println "entire state was" old-value)
+                  (println "entire state is" new-value))))
+
+(dispatch [:numbers/add 3])
+;; numbers are now #{3}
+;; entire state was {:numbers #{}, :letters {:lower-case #{}, :upper-case #{}}}
+;; entire state is {:numbers #{3}, :letters {:lower-case #{}, :upper-case #{}}}
+(dispatch [:letters.lower-case/add "z"])
+;; lower-case letters are now #{z}
+;; entire state was {:numbers #{3}, :letters {:lower-case #{}, :upper-case #{}}}
+;; entire state is {:numbers #{3}, :letters {:lower-case #{z}, :upper-case #{}}}
+(dispatch [:letters.upper-case/add "L"])
+;; entire state was {:numbers #{3}, :letters {:lower-case #{z}, :upper-case #{}}}
+;; entire state is {:numbers #{3}, :letters {:lower-case #{z}, :upper-case #{L}}}
+(dispatch [:letters.lower-case/add "z"]) ;; does not change state
+(unwatch-root)
+(dispatch [:letters.lower-case/add "r"])
+;; lower-case letters are now #{z r}
+```
+
 ### `with-keyword-dispatch`
 
 This allows you to dispatch keywords and will wrap them into a vector before getting to your reducer.
@@ -268,7 +337,7 @@ This allows you to dispatch keywords and will wrap them into a vector before get
     ([state action]
         action)
 
-(def store (collaj/create-store my-reducer collaj.en/with-keyword-dispatch)
+(def store (collaj/create-store my-reducer collaj.en/with-keyword-dispatch))
 
 ((:dispatch store) :do-something)
 ((:get-state store))
@@ -277,19 +346,20 @@ This allows you to dispatch keywords and will wrap them into a vector before get
 
 ### `with-fn-dispatch`
 
-This allows you to dispatch functions that gets invoked with `dispatch` and `get-state` in a vector.
+This allows you to dispatch functions that gets invoked with `dispatch` and `get-state` (in a vector).
 
 ```clojure
 (ns my-namespace.core
     (:require [com.ben-allred.collaj.core :as collaj]
               [com.ben-allred.collaj.enhancers :as collaj.en]))
 
-(def store (collaj/create-store my-reducer 13 collaj.en/with-fn-dispatch)
+(def store (collaj/create-store (constantly 13) collaj.en/with-fn-dispatch))
 
-((:dispatch store) (fn overflow-the-stack [[dipatch get-state]]
+((:dispatch store) (fn overflow-the-stack [[dispatch get-state]]
                         (if (= (get-state) 14)
                             (dispatch [:didn't-blow-up])
                             (dispatch overflow-the-stack))))
+;; StackOverflowError
 ```
 
 ### `with-chan-dispatch`
@@ -303,7 +373,7 @@ the channel is closed.
               [clojure.core.async :as async]
               [com.ben-allred.collaj.enhancers :as collaj.en]))
 
-(def store (collaj/create-store my-reducer 13 collaj.en/with-chan-dispatch)
+(def store (collaj/create-store my-reducer 13 collaj.en/with-chan-dispatch))
 
 (def dispatch-chan (async/chan))
 ((:dispatch store) dispatch-chan)
@@ -326,7 +396,7 @@ A middleware for "peeking" at the action being dispatched and the resulting stat
                     (comp log/debug (partial str "dispatching action: "))
                     (comp log/debug (partial str "updated state is: "))
 
-(def store (collaj/create-store my-reducer 13 middleware)
+(def store (collaj/create-store my-reducer 13 middleware))
 ```
 
 ### Custom Enhancer
@@ -337,7 +407,7 @@ chain and returns a function that accepts the `reducer` and `initial-state` and 
 ```clojure
 (defn do-nothing-enhancer [next]
     (fn [reducer initial-state]
-        (next reducer initial=-state)))
+        (next reducer initial-state)))
 
 (defn hijack-enahncer [next]
     (fn [reducer initial-state]
@@ -346,10 +416,10 @@ chain and returns a function that accepts the `reducer` and `initial-state` and 
 
 ## Dispatch Middleware
 
-There is an `apply-middleware` function in the core namespace that takes one or more dispatch middleware and creates an
-enhancer to be used when creating your store. A dispatch middleware is a function that accepts the `get-state` and
-returns a function that accepts the next middleware in the dispatch middleware chain, and returns a new dispatching
-function.
+There is an `apply-middleware` function in the core namespace that takes one or more dispatch middleware functions and
+creates an enhancer to be used when creating your store. A dispatch middleware is a function that accepts the `get-state`
+function and returns a function that accepts the next middleware in the dispatch middleware chain, and returns a new
+dispatching function.
 
 ```clojure
 (defn do-nothing-dispatch-middleware [get-state]
@@ -389,6 +459,6 @@ they take an additional first argument that will be used to create the ref value
 interested in using a custom ref type other than `clojure.core/atom`, use these functions to create your store.
 
 ```clojure
-(def store (collaj/create-custom-store some.other.ref/function reducer initial-state enhancer)
-(def sub-store (collaj/create-custom-local-store some.other.ref/function (:dispatch store) reducer)
+(def store (collaj/create-custom-store some.other.ref/function reducer initial-state enhancer))
+(def sub-store (collaj/create-custom-local-store some.other.ref/function (:dispatch store) reducer))
 ```
