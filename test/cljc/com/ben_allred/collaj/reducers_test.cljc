@@ -103,3 +103,41 @@
                     (is (= (reducer) {:some {:path {:to {:fav-nums #{}}}}}))
                     (is (= (reducer {:some {:path {:to {:fav-nums #{}}}} :something :else} [:nums/like 75])
                             {:some {:path {:to {:fav-nums #{75}}}}})))))))
+
+(deftest map-of-test
+    (testing "(map-of)"
+        (let [key-fn  (comp :key second)
+              reducer (spy/spy-on (fn
+                                      ([] 0)
+                                      ([state [_ {:keys [value]}]]
+                                       (+ state value))))]
+            (testing "defaults to nil"
+                (let [get-state (:get-state (collaj/create-store (collaj.red/map-of key-fn reducer)))]
+                    (is (nil? (get-state)))))
+            (testing "adds key to map"
+                (spy/reset-spy! reducer)
+                (let [{:keys [get-state dispatch]} (collaj/create-store (collaj.red/map-of key-fn reducer))
+                      action [:any-type {:key ::some-key :value 1}]]
+                    (dispatch action)
+                    (is (= (get-state) {::some-key 1}))
+                    (is (spy/called-with? reducer))
+                    (is (spy/called-with? reducer 0 action))))
+            (testing "updated value in map"
+                (spy/reset-spy! reducer)
+                (let [{:keys [get-state dispatch]} (collaj/create-store (collaj.red/map-of key-fn reducer) {::some-key -3})
+                      action [:any-type {:key ::some-key :value 1}]]
+                    (dispatch action)
+                    (is (= (get-state) {::some-key -2}))
+                    (is (spy/called-times? reducer 1))
+                    (is (spy/called-with? reducer -3 action))))
+            (testing "treats false as an acceptable key"
+                (let [{:keys [get-state dispatch]} (collaj/create-store (collaj.red/map-of key-fn reducer) {false -3})
+                      action [:any-type {:key false :value 4}]]
+                    (dispatch action)
+                    (is (= (get-state) {false 1}))))
+            (testing "keeps unchanged key / values"
+                (let [{:keys [get-state dispatch]} (collaj/create-store (collaj.red/map-of key-fn reducer))]
+                    (dispatch [:any-type {:key ::key-1 :value 7}])
+                    (dispatch [:any-type {:key ::key-2 :value 7}])
+                    (dispatch [:any-type {:key ::key-1 :value 7}])
+                    (is (= (get-state) {::key-1 14 ::key-2 7})))))))

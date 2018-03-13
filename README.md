@@ -222,6 +222,37 @@ in with a specific reducer gets passed to the initial reducer.
 ;; => nil
 ```
 
+### `map-of`
+
+The `map-of` function takes a key-fn and a reducer and builds a map of non-nil results of calling `(key-fn action)` by
+passing their state into the supplied reducer.
+
+```clojure
+(ns my-namespace.core
+    (:require [com.ben-allred.collaj.core :as collaj]
+              [com.ben-allred.collaj.reducers :as collaj.red]))
+
+(defn reducer
+    ([] 0)
+    ([state [type]]
+     (case type
+         :add (+ state value)
+         :subtract (- state value)
+         state)))
+
+(let [{:keys [get-state dispatch]} (collaj/create-store (collaj.red/map-of (comp :key second) reducer))]
+    (println (get-state))
+    (dispatch [:add {:key :number-1}])
+    (dispatch [:subtract {:key :number-2}])
+    (dispatch [:add {:key :number-2}])
+    (dispatch [:another-type {:key :number-1}])
+    (dispatch [:subtract {}])
+    (println (get-state)))
+;; nil
+;; {:number-1 1 :number-2 0}
+;; => nil
+```
+
 ## Enhancers
 
 Enhancers exist in the `com.ben-allred.collaj.enhancers` namespace. These can be mixed and matched when creating your store by
