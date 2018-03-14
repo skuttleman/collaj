@@ -113,7 +113,7 @@
                                        (+ state value))))]
             (testing "defaults to nil"
                 (let [get-state (:get-state (collaj/create-store (collaj.red/map-of key-fn reducer)))]
-                    (is (nil? (get-state)))))
+                    (is (= {} (get-state)))))
             (testing "adds key to map"
                 (spy/reset-spy! reducer)
                 (let [{:keys [get-state dispatch]} (collaj/create-store (collaj.red/map-of key-fn reducer))

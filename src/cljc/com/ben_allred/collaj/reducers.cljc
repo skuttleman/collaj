@@ -55,12 +55,13 @@
     "Given a key-fn and reducer, it returns a reducer which manages the state of an item
     in the map when the key-fn return non-null value."
     [key-fn reducer]
-    (fn ([] nil)
-        ([state action]
-            (let [key (key-fn action)
-                  key-some? (some? key)
-                  has-key? (contains? state key)]
-                (cond
-                    has-key? (update state key reducer action)
-                    key-some? (clojure.core/assoc state key (reducer (reducer) action))
-                    :else state)))))
+    (let [initial-value (delay (reducer))]
+        (fn ([] {})
+            ([state action]
+             (let [key       (key-fn action)
+                   key-some? (some? key)
+                   has-key?  (contains? state key)]
+                 (cond
+                     has-key? (update state key reducer action)
+                     key-some? (clojure.core/assoc state key (reducer @initial-value action))
+                     :else state))))))
