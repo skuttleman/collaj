@@ -253,6 +253,41 @@ passing their state into the supplied reducer.
 ;; => nil
 ```
 
+### `comp`
+
+The `comp` function composes reducers into a single reducer producing the new state by threading it through
+every reducer from right to left. Only the first reducer is used to produce initial state.
+
+```clojure
+(ns my-namespace.core
+    (:require [com.ben-allred.collaj.core :as collaj]
+              [com.ben-allred.collaj.reducers :as collaj.red]))
+
+(defn reducer-1
+    ([] #{})
+    ([state [type value]]
+     (case type
+        :remove (disj state value)
+        state))
+
+(defn reducer-2
+    ([] ::never-gonna-see-me)
+    ([state [type value]]
+     (case type
+        :add (conj state value)
+        state))
+
+(let [{:keys [get-state dispatch]} (collaj/create-store (collaj.red/comp reducer-1 reducer-2))]
+    (println (get-state))
+    (dispatch [:add :some-value])
+    (dispatch [:add :some-other-value])
+    (dispatch [:remove :some-value])
+    (println (get-state)))
+;; #{}
+;; #{:some-other-value}
+;; => nil
+```
+
 ## Enhancers
 
 Enhancers exist in the `com.ben-allred.collaj.enhancers` namespace. These can be mixed and matched when creating your store by

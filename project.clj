@@ -1,4 +1,4 @@
-(defproject com.ben-allred/collaj "0.7.0"
+(defproject com.ben-allred/collaj "0.8.0"
     :description "A state management system for Clojure/ClojureScript based on Redux"
     :url "https://www.github.com/skuttleman/collaj"
     :license {:name "Eclipse Public License"

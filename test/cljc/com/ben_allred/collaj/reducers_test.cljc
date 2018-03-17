@@ -141,3 +141,57 @@
                     (dispatch [:any-type {:key ::key-2 :value 7}])
                     (dispatch [:any-type {:key ::key-1 :value 7}])
                     (is (= (get-state) {::key-1 14 ::key-2 7})))))))
+
+(deftest comp-test
+    (testing "(comp)"
+        (testing "returns no-op reducer when called with no reducers"
+            (let [reducer (collaj.red/comp)]
+                (is (nil? (reducer)))
+                (is (= ::any-random-value (reducer ::any-random-value [:some :sort :of :action])))))
+        (testing "return reducer when called with one reducer"
+            (is (identical? identity (collaj.red/comp identity))))
+        (testing "when composing two reducers"
+            (let [reducer-1 (spy/spy-on (constantly 17))
+                  reducer-2 (spy/spy-on (constantly 3))
+                  reducer (collaj.red/comp reducer-1 reducer-2)]
+                (testing "calling with no args calls only the first reducer"
+                    (spy/reset-spy! reducer-1)
+                    (spy/reset-spy! reducer-2)
+                    (let [result (reducer)]
+                        (is (spy/called-with? reducer-1))
+                        (is (spy/called-times? reducer-1 1))
+                        (is (spy/never-called? reducer-2))
+                        (is (= 17 result))))
+                (testing "calling with state and action calls both reducers"
+                    (spy/reset-spy! reducer-1)
+                    (spy/reset-spy! reducer-2)
+                    (let [result (reducer ::some-state [:any :action])]
+                        (is (spy/called-with? reducer-2 ::some-state [:any :action]))
+                        (is (spy/called-times? reducer-2 1))
+                        (is (spy/called-with? reducer-1 3 [:any :action]))
+                        (is (spy/called-times? reducer-1 1))
+                        (is (= 17 result))))))
+        (testing "when composing many reducers"
+            (let [reducer-1 (spy/spy-on (constantly 17))
+                  rand-ints (take (rand-int 100) (repeatedly #(rand-int 1000)))
+                  other-reducers (map (comp spy/spy-on constantly) rand-ints)
+                  reducer (apply collaj.red/comp reducer-1 other-reducers)]
+                (testing "calling with no args calls only the first reducer"
+                    (spy/reset-spy! reducer-1)
+                    (dorun (map spy/reset-spy! other-reducers))
+                    (let [result (reducer)]
+                        (is (spy/called-with? reducer-1))
+                        (is (spy/called-times? reducer-1 1))
+                        (is (every? spy/never-called? other-reducers))
+                        (is (= 17 result))))
+                (testing "calling with state and action calls both reducers"
+                    (spy/reset-spy! reducer-1)
+                    (dorun (map spy/reset-spy! other-reducers))
+                    (let [result (reducer ::some-state [:any :action])
+                          all-reducers (cons reducer-1 other-reducers)
+                          states (conj (vec rand-ints) ::some-state)]
+                        (is (every? #(spy/called-times? % 1) all-reducers))
+                        (dorun (map #(is (spy/called-with? %1 %2 [:any :action]))
+                                   all-reducers
+                                   states))
+                        (is (= 17 result))))))))

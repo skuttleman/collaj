@@ -1,5 +1,5 @@
 (ns com.ben-allred.collaj.reducers
-    (:refer-clojure :exclude [assoc assoc-in]))
+    (:refer-clojure :exclude [assoc assoc-in comp identity]))
 
 (def ^:private map-initial
     (map (fn [[key reducer]] [key (reducer)])))
@@ -13,6 +13,10 @@
             (empty? ks) m
             (= 1 (count path)) (recur (dissoc m k) paths)
             :else  (recur (update-in m (butlast path) dissoc (last path)) paths))))
+
+(defn ^:private identity
+    ([] nil)
+    ([state action] state))
 
 (defn combine
     "Given a map of arbitrary keys to reducers, returns a reducing function that
@@ -65,3 +69,14 @@
                      has-key? (update state key reducer action)
                      key-some? (clojure.core/assoc state key (reducer @initial-value action))
                      :else state))))))
+
+(defn comp
+    "Composes reducers (right to left) passing as state the response of the
+    right-most reducer to the reducer next to it and so on. Uses the first reducer for initial-state if needed."
+    ([] identity)
+    ([reducer] reducer)
+    ([reducer & reducers]
+     (let [composed (->> reducers
+                        (reduce (fn [combined reducer] #(combined (reducer %1 %2) %2)) reducer))]
+         (fn ([] (reducer))
+             ([state action] (composed state action))))))
